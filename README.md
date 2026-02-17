@@ -130,6 +130,8 @@ python inference.py \
     --output predictions/ \
     --threshold 0.5 \
     --export-masks
+
+    Ex: python .\inference.py --model output/best_model.pth --input ../test
 ```
 
 ### Sortie

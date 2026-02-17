@@ -1,5 +1,6 @@
 # YOLO outputs
 evaluation/
 output/
+predictions/
 *.pt
 *.pth
