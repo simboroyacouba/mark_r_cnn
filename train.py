@@ -20,6 +20,8 @@ from pycocotools.coco import COCO
 from pycocotools import mask as coco_mask_utils
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import time
+from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -30,10 +32,9 @@ warnings.filterwarnings('ignore')
 
 CONFIG = {
     # Chemins (à adapter)
-    "images_dir": ".C:/Users/NEBRATA/Desktop/Memoire/modeles/segmentation/dataset1/default/images",
+    "images_dir": "C:/Users/NEBRATA/Desktop/Memoire/modeles/segmentation/dataset1/images/default",
     "annotations_file": "C:/Users/NEBRATA/Desktop/Memoire/modeles/segmentation/dataset1/annotations/instances_default.json",
-    # "images_dir": "./data/images",
-    # "annotations_file": "./data/annotations/instances_default.json",
+
     "output_dir": "./output",
     
     # Classes (dans l'ordre de CVAT)
@@ -61,6 +62,85 @@ CONFIG = {
     # Sauvegarde
     "save_every": 5,           # Sauvegarder tous les N epochs
 }
+
+
+# =============================================================================
+# UTILITAIRES TEMPS
+# =============================================================================
+
+def format_time(seconds):
+    """Formater les secondes en format lisible HH:MM:SS"""
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    elif seconds < 3600:
+        minutes = int(seconds // 60)
+        secs = int(seconds % 60)
+        return f"{minutes}m {secs}s"
+    else:
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+        return f"{hours}h {minutes}m {secs}s"
+
+
+class TrainingTimer:
+    """Classe pour gérer le suivi du temps d'entraînement"""
+    
+    def __init__(self, num_epochs):
+        self.num_epochs = num_epochs
+        self.start_time = None
+        self.epoch_times = []
+        self.epoch_start = None
+        
+    def start_training(self):
+        """Démarrer le chronomètre global"""
+        self.start_time = time.time()
+        self.training_start_datetime = datetime.now()
+        
+    def start_epoch(self):
+        """Démarrer le chronomètre pour une epoch"""
+        self.epoch_start = time.time()
+        
+    def end_epoch(self, epoch):
+        """Terminer une epoch et calculer les statistiques"""
+        epoch_time = time.time() - self.epoch_start
+        self.epoch_times.append(epoch_time)
+        
+        # Calculs
+        total_elapsed = time.time() - self.start_time
+        avg_epoch_time = np.mean(self.epoch_times)
+        remaining_epochs = self.num_epochs - (epoch + 1)
+        estimated_remaining = avg_epoch_time * remaining_epochs
+        estimated_total = total_elapsed + estimated_remaining
+        eta = datetime.now() + timedelta(seconds=estimated_remaining)
+        
+        return {
+            'epoch_time': epoch_time,
+            'total_elapsed': total_elapsed,
+            'avg_epoch_time': avg_epoch_time,
+            'estimated_remaining': estimated_remaining,
+            'estimated_total': estimated_total,
+            'eta': eta,
+            'progress_percent': ((epoch + 1) / self.num_epochs) * 100
+        }
+    
+    def get_final_stats(self):
+        """Obtenir les statistiques finales"""
+        total_time = time.time() - self.start_time
+        return {
+            'total_time': total_time,
+            'total_time_formatted': format_time(total_time),
+            'avg_epoch_time': np.mean(self.epoch_times),
+            'avg_epoch_time_formatted': format_time(np.mean(self.epoch_times)),
+            'min_epoch_time': np.min(self.epoch_times),
+            'min_epoch_time_formatted': format_time(np.min(self.epoch_times)),
+            'max_epoch_time': np.max(self.epoch_times),
+            'max_epoch_time_formatted': format_time(np.max(self.epoch_times)),
+            'std_epoch_time': np.std(self.epoch_times),
+            'epoch_times': self.epoch_times,
+            'start_datetime': self.training_start_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+            'end_datetime': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
 
 
 # =============================================================================
@@ -338,14 +418,17 @@ def evaluate(model, data_loader, device):
     return total_loss / len(data_loader)
 
 
-def save_checkpoint(model, optimizer, epoch, loss, path):
-    """Sauvegarder un checkpoint"""
-    torch.save({
+def save_checkpoint(model, optimizer, epoch, loss, path, time_stats=None):
+    """Sauvegarder un checkpoint avec informations de temps"""
+    checkpoint = {
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'loss': loss,
-    }, path)
+    }
+    if time_stats:
+        checkpoint['time_stats'] = time_stats
+    torch.save(checkpoint, path)
 
 
 # =============================================================================
@@ -353,22 +436,22 @@ def save_checkpoint(model, optimizer, epoch, loss, path):
 # =============================================================================
 
 def main():
-    print("=" * 60)
-    print("MASK R-CNN - Segmentation des Toitures Cadastrales")
-    print("=" * 60)
+    print("=" * 70)
+    print("   MASK R-CNN - Segmentation des Toitures Cadastrales")
+    print("=" * 70)
     
     # Device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"\nDevice: {device}")
+    print(f"\n📱 Device: {device}")
     if device.type == 'cuda':
-        print(f"GPU: {torch.cuda.get_device_name(0)}")
-        print(f"VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+        print(f"   GPU: {torch.cuda.get_device_name(0)}")
+        print(f"   VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
     
     # Créer le dossier de sortie
     os.makedirs(CONFIG["output_dir"], exist_ok=True)
     
     # Dataset
-    print("\nChargement du dataset...")
+    print("\n📂 Chargement du dataset...")
     full_dataset = CadastralDataset(
         CONFIG["images_dir"],
         CONFIG["annotations_file"],
@@ -384,8 +467,8 @@ def main():
         generator=torch.Generator().manual_seed(42)
     )
     
-    print(f"Train: {len(train_dataset)} images")
-    print(f"Val: {len(val_dataset)} images")
+    print(f"   Train: {len(train_dataset)} images")
+    print(f"   Val: {len(val_dataset)} images")
     
     # Appliquer les transformations
     train_dataset.dataset.transforms = get_transforms(train=True)
@@ -410,11 +493,11 @@ def main():
     )
     
     # Modèle
-    print("\nCréation du modèle...")
+    print("\n🧠 Création du modèle...")
     num_classes = len(CONFIG["classes"])
     model = get_model(num_classes)
     model.to(device)
-    print(f"Classes: {CONFIG['classes']}")
+    print(f"   Classes: {CONFIG['classes']}")
     
     # Optimiseur
     params = [p for p in model.parameters() if p.requires_grad]
@@ -432,21 +515,32 @@ def main():
         gamma=CONFIG["lr_gamma"]
     )
     
-    # Historique des pertes
+    # Historique des pertes et temps
     history = {
         'train_loss': [],
         'val_loss': [],
-        'lr': []
+        'lr': [],
+        'epoch_times': [],
+        'cumulative_times': []
     }
     
     best_val_loss = float('inf')
     
+    # Initialiser le timer
+    timer = TrainingTimer(CONFIG["num_epochs"])
+    
     # Entraînement
-    print("\n" + "=" * 60)
-    print("DÉBUT DE L'ENTRAÎNEMENT")
-    print("=" * 60)
+    print("\n" + "=" * 70)
+    print("   🚀 DÉBUT DE L'ENTRAÎNEMENT")
+    print(f"   📅 Démarré le: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"   📊 Epochs: {CONFIG['num_epochs']} | Batch size: {CONFIG['batch_size']}")
+    print("=" * 70)
+    
+    timer.start_training()
     
     for epoch in range(CONFIG["num_epochs"]):
+        timer.start_epoch()
+        
         # Train
         train_losses = train_one_epoch(model, optimizer, train_loader, device, epoch)
         
@@ -457,60 +551,158 @@ def main():
         lr_scheduler.step()
         current_lr = optimizer.param_groups[0]['lr']
         
+        # Obtenir les stats de temps
+        time_stats = timer.end_epoch(epoch)
+        
         # Historique
         history['train_loss'].append(train_losses['total'])
         history['val_loss'].append(val_loss)
         history['lr'].append(current_lr)
+        history['epoch_times'].append(time_stats['epoch_time'])
+        history['cumulative_times'].append(time_stats['total_elapsed'])
         
-        # Affichage
-        print(f"\nEpoch {epoch+1}/{CONFIG['num_epochs']}")
-        print(f"  Train Loss: {train_losses['total']:.4f} (mask: {train_losses['mask']:.4f})")
-        print(f"  Val Loss: {val_loss:.4f}")
-        print(f"  LR: {current_lr:.6f}")
+        # Affichage détaillé
+        print(f"\n{'─' * 70}")
+        print(f"📈 Epoch {epoch+1}/{CONFIG['num_epochs']} | Progression: {time_stats['progress_percent']:.1f}%")
+        print(f"{'─' * 70}")
+        print(f"   📉 Train Loss: {train_losses['total']:.4f} (mask: {train_losses['mask']:.4f})")
+        print(f"   📊 Val Loss:   {val_loss:.4f}")
+        print(f"   📐 LR:         {current_lr:.6f}")
+        print(f"{'─' * 70}")
+        print(f"   ⏱️  Temps epoch:       {format_time(time_stats['epoch_time'])}")
+        print(f"   ⏱️  Temps total:       {format_time(time_stats['total_elapsed'])}")
+        print(f"   ⏱️  Temps moyen/epoch: {format_time(time_stats['avg_epoch_time'])}")
+        print(f"   ⏳ Temps restant:      {format_time(time_stats['estimated_remaining'])}")
+        print(f"   🏁 ETA:                {time_stats['eta'].strftime('%H:%M:%S')}")
         
         # Sauvegarder le meilleur modèle
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             save_checkpoint(
                 model, optimizer, epoch, val_loss,
-                os.path.join(CONFIG["output_dir"], "best_model.pth")
+                os.path.join(CONFIG["output_dir"], "best_model.pth"),
+                time_stats={'epoch_time': time_stats['epoch_time'], 'total_elapsed': time_stats['total_elapsed']}
             )
-            print("  ✓ Meilleur modèle sauvegardé!")
+            print(f"   ✅ Meilleur modèle sauvegardé!")
         
         # Sauvegardes périodiques
         if (epoch + 1) % CONFIG["save_every"] == 0:
             save_checkpoint(
                 model, optimizer, epoch, val_loss,
-                os.path.join(CONFIG["output_dir"], f"checkpoint_epoch_{epoch+1}.pth")
+                os.path.join(CONFIG["output_dir"], f"checkpoint_epoch_{epoch+1}.pth"),
+                time_stats={'epoch_time': time_stats['epoch_time'], 'total_elapsed': time_stats['total_elapsed']}
             )
+            print(f"   💾 Checkpoint epoch {epoch+1} sauvegardé")
+    
+    # Statistiques finales de temps
+    final_time_stats = timer.get_final_stats()
+    
+    # Ajouter les stats de temps à l'historique
+    history['time_stats'] = final_time_stats
     
     # Sauvegarder le modèle final
     save_checkpoint(
         model, optimizer, CONFIG["num_epochs"]-1, val_loss,
-        os.path.join(CONFIG["output_dir"], "final_model.pth")
+        os.path.join(CONFIG["output_dir"], "final_model.pth"),
+        time_stats=final_time_stats
     )
     
-    # Sauvegarder l'historique
+    # Sauvegarder l'historique complet
     with open(os.path.join(CONFIG["output_dir"], "history.json"), 'w') as f:
         json.dump(history, f, indent=2)
     
     # Plot des courbes de perte
-    plt.figure(figsize=(10, 5))
-    plt.plot(history['train_loss'], label='Train')
-    plt.plot(history['val_loss'], label='Validation')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title('Courbes de perte - Mask R-CNN Cadastral')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(os.path.join(CONFIG["output_dir"], "loss_curves.png"), dpi=150)
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    
+    # Courbe de perte
+    axes[0].plot(history['train_loss'], label='Train', linewidth=2)
+    axes[0].plot(history['val_loss'], label='Validation', linewidth=2)
+    axes[0].set_xlabel('Epoch')
+    axes[0].set_ylabel('Loss')
+    axes[0].set_title('Courbes de perte - Mask R-CNN Cadastral')
+    axes[0].legend()
+    axes[0].grid(True, alpha=0.3)
+    
+    # Courbe de temps par epoch
+    axes[1].bar(range(1, len(history['epoch_times']) + 1), history['epoch_times'], 
+                color='steelblue', alpha=0.7, label='Temps par epoch')
+    axes[1].axhline(y=final_time_stats['avg_epoch_time'], color='red', 
+                    linestyle='--', linewidth=2, label=f"Moyenne: {final_time_stats['avg_epoch_time_formatted']}")
+    axes[1].set_xlabel('Epoch')
+    axes[1].set_ylabel('Temps (secondes)')
+    axes[1].set_title('Temps par epoch')
+    axes[1].legend()
+    axes[1].grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(CONFIG["output_dir"], "training_curves.png"), dpi=150)
     plt.close()
     
-    print("\n" + "=" * 60)
-    print("ENTRAÎNEMENT TERMINÉ")
-    print(f"Meilleure Val Loss: {best_val_loss:.4f}")
-    print(f"Modèles sauvegardés dans: {CONFIG['output_dir']}")
-    print("=" * 60)
+    # Rapport final
+    print("\n" + "=" * 70)
+    print("   🎉 ENTRAÎNEMENT TERMINÉ")
+    print("=" * 70)
+    print(f"\n📊 RÉSUMÉ DES PERFORMANCES")
+    print(f"   {'─' * 50}")
+    print(f"   Meilleure Val Loss: {best_val_loss:.4f}")
+    print(f"   Train Loss finale:  {history['train_loss'][-1]:.4f}")
+    print(f"   Val Loss finale:    {history['val_loss'][-1]:.4f}")
+    
+    print(f"\n⏱️  RAPPORT DE TEMPS")
+    print(f"   {'─' * 50}")
+    print(f"   Début:              {final_time_stats['start_datetime']}")
+    print(f"   Fin:                {final_time_stats['end_datetime']}")
+    print(f"   {'─' * 50}")
+    print(f"   ⏱️  Temps total:       {final_time_stats['total_time_formatted']}")
+    print(f"   ⏱️  Temps moyen/epoch: {final_time_stats['avg_epoch_time_formatted']}")
+    print(f"   ⏱️  Epoch la + rapide: {final_time_stats['min_epoch_time_formatted']}")
+    print(f"   ⏱️  Epoch la + lente:  {final_time_stats['max_epoch_time_formatted']}")
+    print(f"   📈 Écart-type:         {final_time_stats['std_epoch_time']:.2f}s")
+    
+    print(f"\n💾 FICHIERS SAUVEGARDÉS")
+    print(f"   {'─' * 50}")
+    print(f"   📁 Dossier: {CONFIG['output_dir']}")
+    print(f"   ├── best_model.pth")
+    print(f"   ├── final_model.pth")
+    print(f"   ├── checkpoint_epoch_*.pth")
+    print(f"   ├── history.json")
+    print(f"   └── training_curves.png")
+    print("=" * 70)
+    
+    # Sauvegarder le rapport en fichier texte
+    report_path = os.path.join(CONFIG["output_dir"], "training_report.txt")
+    with open(report_path, 'w', encoding='utf-8') as f:
+        f.write("=" * 70 + "\n")
+        f.write("   RAPPORT D'ENTRAÎNEMENT - MASK R-CNN CADASTRAL\n")
+        f.write("=" * 70 + "\n\n")
+        
+        f.write("CONFIGURATION\n")
+        f.write("-" * 50 + "\n")
+        for key, value in CONFIG.items():
+            f.write(f"   {key}: {value}\n")
+        
+        f.write("\nPERFORMANCES\n")
+        f.write("-" * 50 + "\n")
+        f.write(f"   Meilleure Val Loss: {best_val_loss:.4f}\n")
+        f.write(f"   Train Loss finale:  {history['train_loss'][-1]:.4f}\n")
+        f.write(f"   Val Loss finale:    {history['val_loss'][-1]:.4f}\n")
+        
+        f.write("\nTEMPS D'ENTRAÎNEMENT\n")
+        f.write("-" * 50 + "\n")
+        f.write(f"   Début:               {final_time_stats['start_datetime']}\n")
+        f.write(f"   Fin:                 {final_time_stats['end_datetime']}\n")
+        f.write(f"   Temps total:         {final_time_stats['total_time_formatted']}\n")
+        f.write(f"   Temps moyen/epoch:   {final_time_stats['avg_epoch_time_formatted']}\n")
+        f.write(f"   Epoch la + rapide:   {final_time_stats['min_epoch_time_formatted']}\n")
+        f.write(f"   Epoch la + lente:    {final_time_stats['max_epoch_time_formatted']}\n")
+        f.write(f"   Écart-type:          {final_time_stats['std_epoch_time']:.2f}s\n")
+        
+        f.write("\nTEMPS PAR EPOCH\n")
+        f.write("-" * 50 + "\n")
+        for i, t in enumerate(final_time_stats['epoch_times']):
+            f.write(f"   Epoch {i+1:3d}: {format_time(t)}\n")
+    
+    print(f"\n📄 Rapport sauvegardé: {report_path}")
 
 
 if __name__ == "__main__":
