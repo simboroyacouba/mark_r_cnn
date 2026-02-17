@@ -57,11 +57,12 @@ pip install -r requirements.txt
 ### Structure attendue
 
 ```
-data/
+dataset/
 ├── images/
-│   ├── image_001.jpg
-│   ├── image_002.jpg
-│   └── ...
+|   ├── default/
+│   |   ├── image_001.jpg
+│   |   ├── image_002.jpg
+│   |   └── ...
 └── annotations/
     └── instances_default.json
 ```
