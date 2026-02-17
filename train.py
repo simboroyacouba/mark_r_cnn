@@ -32,8 +32,8 @@ warnings.filterwarnings('ignore')
 
 CONFIG = {
     # Chemins (à adapter)
-    "images_dir": "C:/Users/NEBRATA/Desktop/Memoire/modeles/segmentation/dataset1/images/default",
-    "annotations_file": "C:/Users/NEBRATA/Desktop/Memoire/modeles/segmentation/dataset1/annotations/instances_default.json",
+    "images_dir": "../dataset1/images/default",
+    "annotations_file": "../dataset1/annotations/instances_default.json",
 
     "output_dir": "./output",
     
