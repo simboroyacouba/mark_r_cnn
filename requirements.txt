@@ -1,0 +1,27 @@
+# Requirements pour Mask R-CNN Cadastral
+# Installation: pip install -r requirements.txt
+
+# PyTorch (installer selon votre CUDA)
+# Pour CUDA 11.8: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+# Pour CUDA 12.1: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# Pour CPU: pip install torch torchvision
+
+torch>=2.0.0
+torchvision>=0.15.0
+
+# COCO tools
+pycocotools>=2.0.6
+
+# Traitement d'images
+Pillow>=9.0.0
+numpy>=1.21.0
+
+# Visualisation
+matplotlib>=3.5.0
+
+# Utilitaires
+tqdm>=4.64.0
+
+# Optionnel - Jupyter
+# jupyter>=1.0.0
+# ipywidgets>=8.0.0
