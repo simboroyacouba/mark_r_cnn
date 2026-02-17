@@ -70,7 +70,7 @@ dataset/
 ### Vérifier le dataset
 
 ```bash
-python verify_dataset.py --images data/images --annotations data/annotations/instances_default.json --visualize
+python verify_dataset.py --images dataset/images/default --annotations dataset/annotations/instances_default.json --visualize
 ```
 
 ## Entraînement
