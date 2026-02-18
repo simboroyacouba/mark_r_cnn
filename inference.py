@@ -51,12 +51,7 @@ COLORS = {
 
 
 
-COLORS = {
-    "toiture_tole_ondulee": (255, 0, 0),
-    "toiture_tole_bac": (0, 255, 0),
-    "toiture_tuile": (0, 0, 255),
-    "toiture_dalle": (255, 165, 0),
-}
+
 CONFIG = {
     "model_path": os.getenv("SEGMENTATION_MODEL_PATH", "./output/best_model.pth"),
     "input_dir": os.getenv("SEGMENTATION_TEST_IMAGES_DIR", "./test_images"),
