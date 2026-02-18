@@ -10,6 +10,7 @@ from pycocotools.coco import COCO
 import numpy as np
 import matplotlib.pyplot as plt
 from pycocotools import mask as coco_mask_utils
+from dotenv import load_dotenv
 
 
 def verify_dataset(images_dir, annotations_file):
@@ -215,19 +216,26 @@ def visualize_sample(images_dir, annotations_file, num_samples=3):
 
 if __name__ == "__main__":
     import argparse
+
+    load_dotenv()
     
     parser = argparse.ArgumentParser(description="Vérifier le dataset CVAT")
-    parser.add_argument("--images", type=str, default="../dataset1/images/default",
-                       help="Dossier des images")
+    parser.add_argument("--images", type=str, 
+                    default=os.getenv("SEGMENTATION_DATASET_IMAGES_DIR"),
+                    help="Dossier des images")
     parser.add_argument("--annotations", type=str, 
-                       default="../dataset1/annotations/instances_default.json",
-                       help="Fichier d'annotations COCO")
+                    default=os.getenv("SEGMENTATION_DATASET_ANNOTATIONS_FILE"),
+                    help="Fichier d'annotations COCO JSON")
     parser.add_argument("--visualize", action="store_true",
                        help="Visualiser des échantillons")
     parser.add_argument("--num-samples", type=int, default=3,
                        help="Nombre d'échantillons à visualiser")
     
     args = parser.parse_args()
+
+
+    print("Images:", os.getenv("SEGMENTATION_DATASET_IMAGES_DIR"))
+    print("Annotations:", os.getenv("SEGMENTATION_DATASET_ANNOTATIONS_FILE"))
     
     valid = verify_dataset(args.images, args.annotations)
     
