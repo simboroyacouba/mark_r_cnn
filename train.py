@@ -20,6 +20,7 @@ from pycocotools.coco import COCO
 from pycocotools import mask as coco_mask_utils
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import yaml
 import time
 from datetime import datetime, timedelta
 import warnings
@@ -30,22 +31,23 @@ warnings.filterwarnings('ignore')
 # CONFIGURATION
 # =============================================================================
 
+# Charger les classes depuis le fichier YAML
+def load_classes(yaml_path="classes.yaml"):
+    with open(yaml_path, 'r', encoding='utf-8') as f:
+        data = yaml.safe_load(f)
+    return data['classes']
+
 CONFIG = {
     # Chemins (à adapter)
     "images_dir": os.getenv("SEGMENTATION_DATASET_IMAGES_DIR"),
     "annotations_file": os.getenv("SEGMENTATION_DATASET_ANNOTATIONS_FILE"),
+    "classes_file": os.getenv("CLASSES_FILE", "classes.yaml"),
 
 
     "output_dir": "./output",
     
     # Classes (dans l'ordre de CVAT)
-    "classes": [
-        "__background__",      # 0 - toujours en premier
-        "toiture_tole_ondulee",  # 1
-        "toiture_tole_bac",      # 2
-        "toiture_tuile",         # 3
-        "toiture_dalle"          # 4
-    ],
+   "classes": load_classes(os.getenv("CLASSES_FILE", "classes.yaml")),
     
     # Hyperparamètres
     "num_epochs": 25,

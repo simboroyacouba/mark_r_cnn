@@ -25,6 +25,7 @@ from pycocotools.cocoeval import COCOeval
 from pycocotools import mask as coco_mask_utils
 import matplotlib.pyplot as plt
 import seaborn as sns
+import yaml
 from collections import defaultdict
 from tqdm import tqdm
 import argparse
@@ -37,21 +38,22 @@ warnings.filterwarnings('ignore')
 # CONFIGURATION
 # =============================================================================
 
+# Charger les classes depuis le fichier YAML
+def load_classes(yaml_path="classes.yaml"):
+    with open(yaml_path, 'r', encoding='utf-8') as f:
+        data = yaml.safe_load(f)
+    return data['classes']
+
 CONFIG = {
     # Chemins (à adapter)
     "images_dir": os.getenv("SEGMENTATION_DATASET_IMAGES_DIR"),
     "annotations_file": os.getenv("SEGMENTATION_DATASET_ANNOTATIONS_FILE"),
+    "classes_file": os.getenv("CLASSES_FILE", "classes.yaml"),
     "model_path": "./output/best_model.pth",
     "output_dir": "./evaluation",
     
     # Classes
-    "classes": [
-        "__background__",
-        "toiture_tole_ondulee",
-        "toiture_tole_bac",
-        "toiture_tuile",
-        "toiture_dalle"
-    ],
+   "classes": load_classes(os.getenv("CLASSES_FILE", "classes.yaml")),
     
     # Paramètres d'évaluation
     "score_threshold": 0.5,      # Seuil de confiance pour les prédictions

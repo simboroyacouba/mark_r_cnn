@@ -24,6 +24,7 @@ from pathlib import Path
 from datetime import datetime
 import time
 import json
+import yaml
 
 # Charger les variables d'environnement
 load_dotenv()
@@ -31,13 +32,24 @@ load_dotenv()
 # CONFIGURATION
 # =============================================================================
 
-CLASSES = [
-    "__background__",
-    "toiture_tole_ondulee",
-    "toiture_tole_bac", 
-    "toiture_tuile",
-    "toiture_dalle"
+def load_classes(yaml_path=None):
+    path = yaml_path or os.getenv("CLASSES_FILE", "classes.yaml")
+    with open(path, 'r', encoding='utf-8') as f:
+        return yaml.safe_load(f)['classes']
+    
+    # Palette de couleurs auto-générée pour toutes les classes
+_PALETTE = [
+    (255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 165, 0),
+    (128, 0, 128), (0, 255, 255), (255, 20, 147), (0, 128, 0),
 ]
+CLASSES = load_classes()
+
+COLORS = {
+    cls: _PALETTE[i % len(_PALETTE)]
+    for i, cls in enumerate(CLASSES[1:])  # on ignore __background__
+}
+
+
 
 COLORS = {
     "toiture_tole_ondulee": (255, 0, 0),
@@ -48,6 +60,7 @@ COLORS = {
 CONFIG = {
     "model_path": os.getenv("SEGMENTATION_MODEL_PATH", "./output/best_model.pth"),
     "input_dir": os.getenv("SEGMENTATION_TEST_IMAGES_DIR", "./test_images"),
+    "classes_file": os.getenv("CLASSES_FILE", "classes.yaml"),
     "output_dir": os.getenv("SEGMENTATION_OUTPUT_DIR", "./predictions"),
     "score_threshold": 0.5,
     "export_masks": False,

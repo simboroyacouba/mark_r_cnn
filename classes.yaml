@@ -1,0 +1,15 @@
+# =============================================================================
+# CONFIGURATION DES CLASSES - Segmentation Toitures Cadastrales
+# =============================================================================
+# Modifier ce fichier pour adapter les classes à ton dataset CVAT/COCO
+# IMPORTANT: "__background__" doit toujours être en index 0
+
+classes:
+  - __background__        # index 0 - NE PAS SUPPRIMER
+  - toiture_tole_ondulee  # index 1
+  - toiture_tole_bac      # index 2
+  - toiture_tuile         # index 3
+  - toiture_dalle         # index 4
+
+# Nombre total de classes (background inclus) = len(classes)
+# Mis à jour automatiquement par le script
