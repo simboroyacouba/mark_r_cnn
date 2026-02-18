@@ -6,10 +6,9 @@
 
 classes:
   - __background__        # index 0 - NE PAS SUPPRIMER
-  - toiture_tole_ondulee  # index 1
-  - toiture_tole_bac      # index 2
-  - toiture_tuile         # index 3
-  - toiture_dalle         # index 4
+  - toiture_tole_ondulee  # index 1 (COCO category id: 1)
+  - toiture_tole_bac      # index 2 (COCO category id: 2)
+  - toiture_dalle         # index 3 (COCO category id: 3)
 
 # Nombre total de classes (background inclus) = len(classes)
 # Mis à jour automatiquement par le script
